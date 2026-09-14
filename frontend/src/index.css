@@ -1,0 +1,133 @@
+/*
+  Color palette:
+    Flame:        #EB5E28
+    Eerie Black:  #252422
+    Dark Olive:   #403D39
+    Silver:       #CCC5B9
+    Floral White: #FFFCF2
+*/
+
+:root,
+[data-theme="light"] {
+  /* Palette tokens */
+  --accent:         #EB5E28;
+  --accent-hover:   #d4521f;
+
+  --bg-root:        #FFFCF2;
+  --bg-surface:     #ffffff;
+  --bg-elevated:    #f5f0eb;
+
+  --text-primary:   #252422;
+  --text-secondary: #403D39;
+  --text-muted:     #706b63;
+
+  --border:         #CCC5B9;
+  --border-light:   #e6e0d4;
+
+  --chip-bg:        #ffffff;
+  --chip-sel-bg:    #252422;
+  --chip-sel-text:  #FFFCF2;
+
+  --btn-primary-bg:   #252422;
+  --btn-primary-text: #FFFCF2;
+
+  --danger-bg:      #fee2e2;
+  --danger-text:    #dc2626;
+
+  --tag-bg:         #dcfce7;
+  --tag-text:       #16a34a;
+
+  --overlay:        rgba(37, 36, 34, 0.4);
+
+  --panel-header-bg:   #252422;
+  --panel-header-text: #FFFCF2;
+
+  --grid-line:      #CCC5B9;
+  --grid-line-sub:  #e6e0d4;
+
+  --shadow-sm: 0 1px 3px rgba(37, 36, 34, 0.08);
+  --shadow-md: 0 4px 16px rgba(37, 36, 34, 0.12);
+  --shadow-lg: 0 12px 40px rgba(37, 36, 34, 0.16);
+
+  /* System */
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  font: 18px/145% var(--sans);
+  letter-spacing: 0.18px;
+  color-scheme: light;
+  color: var(--text-secondary);
+  background: var(--bg-root);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme="dark"] {
+  --accent:         #EB5E28;
+  --accent-hover:   #f06d3a;
+
+  --bg-root:        #1c1b19;
+  --bg-surface:     #252422;
+  --bg-elevated:    #33302c;
+
+  --text-primary:   #FFFCF2;
+  --text-secondary: #CCC5B9;
+  --text-muted:     #8a857d;
+
+  --border:         #403D39;
+  --border-light:   #33302c;
+
+  --chip-bg:        #33302c;
+  --chip-sel-bg:    #EB5E28;
+  --chip-sel-text:  #FFFCF2;
+
+  --btn-primary-bg:   #EB5E28;
+  --btn-primary-text: #FFFCF2;
+
+  --danger-bg:      rgba(220, 38, 38, 0.2);
+  --danger-text:    #f87171;
+
+  --tag-bg:         rgba(22, 163, 74, 0.2);
+  --tag-text:       #4ade80;
+
+  --overlay:        rgba(0, 0, 0, 0.6);
+
+  --panel-header-bg:   #1c1b19;
+  --panel-header-text: #EB5E28;
+
+  --grid-line:      #403D39;
+  --grid-line-sub:  #33302c;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
+
+  color-scheme: dark;
+  color: var(--text-secondary);
+  background: var(--bg-root);
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+}
+
+h1, h2 {
+  font-family: var(--sans);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+p {
+  margin: 0;
+}
+
+/* Smooth transition on theme toggle */
+*,
+*::before,
+*::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
