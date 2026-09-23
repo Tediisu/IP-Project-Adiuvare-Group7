@@ -21,8 +21,8 @@ You do **not** need Node.js, Python, or MySQL installed locally — everything r
 ## 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/<your-repo>.git
-cd <your-repo>
+git clone https://github.com/<your-username>/<your-repo>.git](https://github.com/Tediisu/Adiuvare.git
+cd Adiuvare
 ```
 
 ## 2. Set up environment variables
