@@ -211,7 +211,3 @@ If using the dev setup with a mounted volume, install inside the container, not 
 ```bash
 docker compose exec frontend npm install <package-name>
 ```
-
-## License
-
-Specify your license here (e.g. MIT) or note this is a school/capstone project not intended for redistribution.
