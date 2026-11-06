@@ -1,0 +1,289 @@
+.schedule-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1.111px solid var(--border);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+
+/* Three columns (spacer | title | actions) keep the title centered regardless of the right-hand controls. */
+.schedule-card-header {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, auto) 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: var(--ink);
+}
+
+.schedule-card-header h1 {
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+}
+
+.schedule-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.schedule-title {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.schedule-title:hover,
+.schedule-title:focus-visible {
+  background: rgba(255, 252, 242, 0.1);
+  outline: none;
+}
+
+.schedule-title-input {
+  width: min(320px, 100%);
+  padding: 2px 8px;
+  border: 1.111px solid var(--accent);
+  border-radius: 6px;
+  background: rgba(255, 252, 242, 0.08);
+  color: var(--accent);
+  font: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+
+.schedule-settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 8px;
+}
+
+.schedule-settings:hover {
+  background: rgba(255, 252, 242, 0.1);
+}
+
+.schedule-scroll {
+  overflow-x: auto;
+}
+
+.schedule-grid {
+  min-width: 600px;
+  background: var(--surface);
+}
+
+.schedule-row {
+  display: grid;
+  grid-template-columns: 72px repeat(7, minmax(0, 1fr));
+  height: var(--row-height);
+  border-bottom: 1.111px solid var(--grid-line-soft);
+}
+
+.schedule-row.on-hour {
+  border-bottom-color: var(--grid-line);
+}
+
+/* Closing row that carries the end-hour label; the last time slot's border marks the end. */
+.schedule-row.schedule-end {
+  height: 22px;
+  border-bottom: none;
+}
+
+.schedule-row.schedule-end .schedule-cell {
+  background: var(--surface-muted);
+}
+
+.schedule-head {
+  height: 37px;
+  border-bottom: 1.111px solid var(--grid-line);
+}
+
+.schedule-head .schedule-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+}
+
+.schedule-cell {
+  border-left: 1.111px solid var(--grid-line);
+}
+
+.schedule-slot {
+  padding: 0;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.schedule-slot:hover,
+.schedule-slot:focus-visible {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  outline: none;
+}
+
+.schedule-time {
+  padding: 4px 12px 0 0;
+  font-size: 10px;
+  line-height: 13.333px;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Half- and quarter-hour labels stay readable but quieter than the hour marks. */
+.schedule-time.sub-hour {
+  opacity: 0.6;
+}
+
+.schedule-body {
+  position: relative;
+}
+
+.schedule-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 72px repeat(7, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.schedule-day {
+  position: relative;
+}
+
+.schedule-block {
+  /* left and width come from the lane layout inline style */
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  padding: 4px 8px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 11px;
+  line-height: 14px;
+  text-align: left;
+  pointer-events: auto;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.schedule-block strong {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.schedule-block span {
+  opacity: 0.9;
+}
+
+.schedule-block strong,
+.schedule-block span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Overlapping classes: amber ring so they stand out even side by side. */
+.schedule-block.conflicting {
+  outline: 2px solid var(--warning);
+  outline-offset: -2px;
+}
+
+.schedule-block:hover {
+  filter: brightness(1.05);
+}
+
+.schedule-print-date {
+  display: none;
+}
+
+@media print {
+  .schedule-card {
+    border-color: var(--grid-line);
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  /* Ink-friendly title bar: no dark fill, dark title, printed date instead of the settings gear. */
+  .schedule-card-header {
+    padding: 8px 12px;
+    border-bottom: 1.111px solid var(--grid-line);
+    background: none;
+  }
+
+  .schedule-card-header h1 {
+    font-size: 18px;
+    color: var(--text);
+  }
+
+  .schedule-settings {
+    display: none;
+  }
+
+  .schedule-print-date {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .schedule-scroll {
+    overflow: visible;
+  }
+
+  .schedule-grid {
+    min-width: 0;
+    /* Overrides the inline screen height so the whole day fits one page. */
+    --row-height: var(--print-row-height) !important;
+  }
+
+  .schedule-row.schedule-end {
+    height: 18px;
+  }
+
+  .schedule-row.schedule-end .schedule-cell {
+    background: none;
+  }
+
+  .schedule-time {
+    padding-top: 1px;
+    line-height: 11px;
+  }
+
+  /* Browsers drop background colours when printing unless told otherwise. */
+  .schedule-block {
+    padding: 2px 6px;
+    box-shadow: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .schedule-block strong,
+  .schedule-block span {
+    white-space: normal;
+  }
+}
