@@ -13,8 +13,8 @@ function AuthModal({ onClose, onGuest }: AuthModalProps) {
   const [connecting, setConnecting] = useState(false)
 
   function handleGoogleSignIn() {
-    // TODO: start the Google OAuth flow once the backend supports it.
     setConnecting(true)
+    window.location.assign('/api/auth/google/login')
   }
 
   return (

@@ -2,6 +2,7 @@
 export interface Session {
   name: string
   guest: boolean
+  email?: string
 }
 
 const STORAGE_KEY = 'session'
@@ -17,6 +18,16 @@ export function getSession(): Session | null {
 
 export function startGuestSession(): Session {
   const session = { name: 'Guest', guest: true }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
+  } catch {
+    // storage unavailable; the session still works for this page load
+  }
+  return session
+}
+
+export function startGoogleSession(name: string, email?: string): Session {
+  const session = { name, email, guest: false }
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
   } catch {

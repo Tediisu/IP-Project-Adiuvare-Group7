@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import health, items
+from app.routers import google_calendar, health, items
 
 app = FastAPI(title="Scheduling Planner API")
 
@@ -17,3 +17,4 @@ app.add_middleware(
 
 app.include_router(health.router, prefix="/api")
 app.include_router(items.router, prefix="/api")
+app.include_router(google_calendar.router, prefix="/api")

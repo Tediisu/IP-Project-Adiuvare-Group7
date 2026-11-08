@@ -56,6 +56,18 @@ VITE_API_URL=http://localhost:8000
 
 > ⚠️ Never commit your real `.env` file. Only `.env.example` (with placeholder values) should be pushed to GitHub.
 
+### Google OAuth setup
+
+1. In Google Cloud Console, create a project and configure the OAuth consent screen.
+2. Create an OAuth 2.0 Client ID with application type **Web application**.
+3. Add `http://localhost:8000/api/auth/google/callback` to **Authorized redirect URIs**.
+4. Enable the **Google Calendar API** in the project.
+5. Add your client ID and client secret to `.env`, then rebuild:
+
+```powershell
+docker compose up --build -d
+```
+
 ## 3. Build and run with Docker Compose
 
 From the project root (where `docker-compose.yml` lives):

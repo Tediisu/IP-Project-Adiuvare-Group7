@@ -24,7 +24,7 @@ import { fitToItems, itemHourRange, useGridSettings } from '../hooks/useGridSett
 import { useScheduleTitle } from '../hooks/useScheduleTitle'
 import { useTheme } from '../hooks/useTheme'
 import { type Day, describeOverlap, findConflicts } from '../lib/schedule'
-import { getSession, initials, startGuestSession } from '../lib/session'
+import { getSession, initials, startGoogleSession, startGuestSession } from '../lib/session'
 import './DashboardPage.css'
 
 type Dialog =
@@ -51,6 +51,15 @@ function DashboardPage() {
     listItems()
       .then(setItems)
       .catch((err: Error) => setError(err.message))
+    fetch('/api/auth/google/status')
+      .then((response) => response.json())
+      .then((status: { authenticated: boolean; name?: string; email?: string }) => {
+        if (status.authenticated && status.name) {
+          const googleSession = startGoogleSession(status.name, status.email)
+          setSession(googleSession)
+        }
+      })
+      .catch(() => undefined)
   }, [])
 
   // Grow the visible hours whenever an item falls outside them.
@@ -274,9 +283,24 @@ function DashboardPage() {
         <GoogleCalendarModal
           items={items}
           onClose={close}
-          onConfirm={() => {
-            // TODO: push the entries to Google Calendar once Google sign-in is wired up.
-            close()
+          onConfirm={async (entries) => {
+            await run(async () => {
+              const response = await fetch('/api/google-calendar/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  entries: entries.map((entry) => ({
+                    ...entry,
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  })),
+                }),
+              })
+              const body = await response.json().catch(() => ({}))
+              if (!response.ok) {
+                throw new Error(typeof body.detail === 'string' ? body.detail : 'Google Calendar import failed')
+              }
+              close()
+            })
           }}
         />
       )}
