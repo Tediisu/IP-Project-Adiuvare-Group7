@@ -5,6 +5,7 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend/app:/app/app
+      - ./backend/data:/app/data
     environment:
       - CORS_ORIGINS=http://localhost:5173
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}

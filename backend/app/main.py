@@ -1,11 +1,20 @@
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import google_calendar, health, items
+from app.db import init_db
+from app.routers import google_calendar, health, items, state
 
-app = FastAPI(title="Scheduling Planner API")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="Scheduling Planner API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,4 +26,5 @@ app.add_middleware(
 
 app.include_router(health.router, prefix="/api")
 app.include_router(items.router, prefix="/api")
+app.include_router(state.router, prefix="/api")
 app.include_router(google_calendar.router, prefix="/api")

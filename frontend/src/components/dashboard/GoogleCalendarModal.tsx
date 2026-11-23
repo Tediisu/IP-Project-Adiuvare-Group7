@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import googleIcon from '../../assets/icons/google-g.svg'
 import type { ScheduleItem } from '../../api/items'
-import { formatTime } from '../../lib/schedule'
+import { formatTime, fromMinutes, toMinutes } from '../../lib/schedule'
 import Modal, { ModalCloseButton } from '../Modal'
 import TypeBadges from './TypeBadges'
+import '../AuthModal.css'
 import './GoogleCalendarModal.css'
 
 export interface CalendarImportEntry {
@@ -17,18 +18,21 @@ export interface CalendarImportEntry {
 
 interface GoogleCalendarModalProps {
   items: ScheduleItem[]
+  /** Guests see a sign-in prompt instead of the import form. */
+  signedIn: boolean
   onClose: () => void
   onConfirm: (entries: CalendarImportEntry[]) => void
 }
 
-function GoogleCalendarModal({ items, onClose, onConfirm }: GoogleCalendarModalProps) {
+function GoogleCalendarModal({ items, signedIn, onClose, onConfirm }: GoogleCalendarModalProps) {
+  const [connecting, setConnecting] = useState(false)
   const [entries, setEntries] = useState<CalendarImportEntry[]>(() =>
     items.map((item) => ({
       itemId: item.id,
       title: item.title,
       date: '',
-      start: formatTime(item.start_time),
-      end: formatTime(item.end_time),
+      start: fromMinutes(toMinutes(item.start_time)),
+      end: fromMinutes(toMinutes(item.end_time)),
       repeatWeekly: false,
     })),
   )
@@ -37,20 +41,67 @@ function GoogleCalendarModal({ items, onClose, onConfirm }: GoogleCalendarModalP
     setEntries((prev) => prev.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)))
   }
 
-  return (
-    <Modal onClose={onClose} labelledBy="gcal-title" width={672}>
-      <div className="modal-header gcal-header">
-        <div className="gcal-heading">
-          <img src={googleIcon} alt="" width={23.993} height={23.993} />
-          <div>
-            <h2 id="gcal-title" className="modal-title gcal-title">
-              Import to Google Calendar
-            </h2>
-            <p className="modal-subtitle">Review and confirm before syncing</p>
+  const header = (
+    <div className="modal-header gcal-header">
+      <div className="gcal-heading">
+        <img src={googleIcon} alt="" width={23.993} height={23.993} />
+        <div>
+          <h2 id="gcal-title" className="modal-title gcal-title">
+            Import to Google Calendar
+          </h2>
+          <p className="modal-subtitle">{signedIn ? 'Review and confirm before syncing' : 'Sign in to import'}</p>
+        </div>
+      </div>
+      <ModalCloseButton onClick={onClose} />
+    </div>
+  )
+
+  if (!signedIn) {
+    return (
+      <Modal onClose={onClose} labelledBy="gcal-title" width={672}>
+        {header}
+
+        <div className="gcal-list">
+          <div className="gcal-card gcal-signin">
+            {connecting ? (
+              <div className="auth-modal-connecting" role="status">
+                <div className="spinner" />
+                <p>Connecting to Google...</p>
+              </div>
+            ) : (
+              <>
+                <h3 className="gcal-signin-title">Sign in to import</h3>
+                <p className="gcal-signin-text">
+                  Connect your Google account to add your classes to Google Calendar. Your schedule comes with you.
+                </p>
+                <button
+                  type="button"
+                  className="google-button gcal-signin-button"
+                  onClick={() => {
+                    setConnecting(true)
+                    window.location.assign('/api/auth/google/login')
+                  }}
+                >
+                  <img src={googleIcon} alt="" width={20} height={20} />
+                  Continue with Google
+                </button>
+              </>
+            )}
           </div>
         </div>
-        <ModalCloseButton onClick={onClose} />
-      </div>
+
+        <div className="modal-footer gcal-footer">
+          <button type="button" className="btn btn-outline btn-subtle" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </Modal>
+    )
+  }
+
+  return (
+    <Modal onClose={onClose} labelledBy="gcal-title" width={672}>
+      {header}
 
       <div className="gcal-list">
         {items.length === 0 && <p className="empty-state">Add items to your schedule first.</p>}
@@ -80,11 +131,11 @@ function GoogleCalendarModal({ items, onClose, onConfirm }: GoogleCalendarModalP
                 </label>
                 <label>
                   Start
-                  <input value={entry.start} onChange={(e) => update(i, { start: e.target.value })} />
+                  <input type="time" value={entry.start} onChange={(e) => update(i, { start: e.target.value })} />
                 </label>
                 <label>
                   End
-                  <input value={entry.end} onChange={(e) => update(i, { end: e.target.value })} />
+                  <input type="time" value={entry.end} onChange={(e) => update(i, { end: e.target.value })} />
                 </label>
               </div>
               <label className="gcal-repeat">
@@ -107,7 +158,8 @@ function GoogleCalendarModal({ items, onClose, onConfirm }: GoogleCalendarModalP
         <button
           type="button"
           className="btn btn-accent"
-          disabled={items.length === 0}
+          disabled={items.length === 0 || entries.some((e) => !e.date || !e.start || !e.end)}
+          title={entries.some((e) => !e.date) ? 'Pick a date for every event' : undefined}
           onClick={() => onConfirm(entries)}
         >
           Confirm Import

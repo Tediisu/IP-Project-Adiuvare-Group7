@@ -2,11 +2,17 @@ import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import settingsIcon from '../../assets/icons/settings.svg'
 import type { ScheduleItem } from '../../api/items'
 import type { GridSettings } from '../../hooks/useGridSettings'
-import { type Day, formatMinutes, formatTime, orderedDays, toMinutes } from '../../lib/schedule'
+import { DAY_NAMES, type Day, formatMinutes, formatTime, toMinutes, visibleDays } from '../../lib/schedule'
 import './ScheduleGrid.css'
 
-/** Height of one interval row, including its 1px bottom border. Also drives --row-height in CSS. */
-const ROW_HEIGHT = 33
+/**
+ * Height of one hour on screen. It stays the same at every increment, so a 1-hour class is always
+ * readable; the increment only changes how many lines are drawn (80px/hr → 15 min = 20px, 30 min = 40px, 1 hr = 80px).
+ */
+const HOUR_HEIGHT = 80
+
+/** Blocks shorter than this many pixels put the time beside the title instead of below it. */
+const COMPACT_BLOCK = 44
 
 /**
  * Vertical space for time rows on a printed page: landscape Letter (8.5in tall) minus
@@ -129,7 +135,7 @@ function ScheduleGrid({
   title,
   onRenameTitle,
 }: ScheduleGridProps) {
-  const days = orderedDays(settings.weekStart)
+  const days = visibleDays(settings.weekStart, items)
   const gridStart = settings.startHour * 60
   const gridEnd = settings.endHour * 60
   const rows: number[] = []
@@ -151,7 +157,8 @@ function ScheduleGrid({
   }
 
   // Shrink rows when printing so the whole day fits on one page, but never grow past the screen size.
-  const printRowHeight = Math.max(PRINT_ROW_MIN, Math.min(ROW_HEIGHT, Math.floor(PRINT_ROWS_HEIGHT / rows.length)))
+  const rowHeight = (HOUR_HEIGHT * settings.interval) / 60
+  const printRowHeight = Math.max(PRINT_ROW_MIN, Math.min(rowHeight, Math.floor(PRINT_ROWS_HEIGHT / rows.length)))
   const printedOn = usePrintDate()
 
   return (
@@ -171,13 +178,19 @@ function ScheduleGrid({
       <div className="schedule-scroll">
         <div
           className="schedule-grid"
-          style={{ '--row-height': `${ROW_HEIGHT}px`, '--print-row-height': `${printRowHeight}px` } as CSSProperties}
+          style={
+            {
+              '--row-height': `${rowHeight}px`,
+              '--print-row-height': `${printRowHeight}px`,
+              '--day-count': days.length,
+            } as CSSProperties
+          }
         >
           <div className="schedule-row schedule-head">
             <div />
             {days.map((day) => (
               <div key={day} className="schedule-cell">
-                {day.toUpperCase()}
+                {DAY_NAMES[day]}
               </div>
             ))}
           </div>
@@ -194,7 +207,7 @@ function ScheduleGrid({
                       key={day}
                       type="button"
                       className="schedule-cell schedule-slot"
-                      aria-label={`Add item on ${day} at ${formatMinutes(t)}`}
+                      aria-label={`Add item on ${DAY_NAMES[day]} at ${formatMinutes(t)}`}
                       onClick={() => onSelectSlot(day, t)}
                     />
                   ))}
@@ -221,11 +234,13 @@ function ScheduleGrid({
                       const style = blockStyle(item, lane)
                       if (!style) return null
                       const conflicting = lane.lanes > 1
+                      const minutes = toMinutes(item.end_time) - toMinutes(item.start_time)
+                      const compact = (minutes / 60) * HOUR_HEIGHT < COMPACT_BLOCK
                       return (
                         <button
                           key={item.id}
                           type="button"
-                          className={`schedule-block${conflicting ? ' conflicting' : ''}`}
+                          className={`schedule-block${conflicting ? ' conflicting' : ''}${compact ? ' compact' : ''}`}
                           style={style}
                           title={conflicting ? `${item.title} overlaps another class` : undefined}
                           onClick={() => onSelectItem(item)}

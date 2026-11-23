@@ -39,10 +39,29 @@ export function fitToItems(settings: GridSettings, items: ScheduleItem[]): GridS
   return { ...settings, startHour, endHour }
 }
 
+/** Settings from storage or the server, with any missing or invalid field replaced by its default. */
+export function parseGridSettings(raw: unknown): GridSettings {
+  const value = (typeof raw === 'object' && raw !== null ? raw : {}) as Partial<Record<keyof GridSettings, unknown>>
+  const isHour = (h: unknown, min: number, max: number): h is number =>
+    typeof h === 'number' && Number.isInteger(h) && h >= min && h <= max
+  return {
+    startHour: isHour(value.startHour, 0, 12) ? value.startHour : DEFAULT_GRID_SETTINGS.startHour,
+    endHour: isHour(value.endHour, 13, 24) ? value.endHour : DEFAULT_GRID_SETTINGS.endHour,
+    interval:
+      value.interval === 15 || value.interval === 30 || value.interval === 60
+        ? value.interval
+        : DEFAULT_GRID_SETTINGS.interval,
+    weekStart:
+      value.weekStart === 'Mon' || value.weekStart === 'Sun' || value.weekStart === 'Sat'
+        ? value.weekStart
+        : DEFAULT_GRID_SETTINGS.weekStart,
+  }
+}
+
 function loadSettings(): GridSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...DEFAULT_GRID_SETTINGS, ...JSON.parse(raw) }
+    if (raw) return parseGridSettings(JSON.parse(raw))
   } catch {
     // storage unavailable or corrupt
   }

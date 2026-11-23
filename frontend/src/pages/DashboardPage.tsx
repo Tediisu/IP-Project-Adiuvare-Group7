@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate } from 'react-router'
+import { Link, Navigate, useNavigate } from 'react-router'
 import calendarIcon from '../assets/icons/logo-calendar-sm.svg'
 import moonIcon from '../assets/icons/moon-sm.svg'
 import syncIcon from '../assets/icons/sync.svg'
@@ -20,11 +20,13 @@ import ImportImageModal from '../components/dashboard/ImportImageModal'
 import ItemFormModal from '../components/dashboard/ItemFormModal'
 import ManageSchedulesModal from '../components/dashboard/ManageSchedulesModal'
 import ScheduleGrid from '../components/dashboard/ScheduleGrid'
-import { fitToItems, itemHourRange, useGridSettings } from '../hooks/useGridSettings'
+import type { AppState } from '../api/state'
+import { fitToItems, itemHourRange, parseGridSettings, useGridSettings } from '../hooks/useGridSettings'
 import { useScheduleTitle } from '../hooks/useScheduleTitle'
+import { useSyncedState } from '../hooks/useSyncedState'
 import { useTheme } from '../hooks/useTheme'
 import { type Day, describeOverlap, findConflicts } from '../lib/schedule'
-import { getSession, initials, startGoogleSession, startGuestSession } from '../lib/session'
+import { clearSession, getSession, initials, startGoogleSession, startGuestSession } from '../lib/session'
 import './DashboardPage.css'
 
 type Dialog =
@@ -40,12 +42,22 @@ type Dialog =
 
 function DashboardPage() {
   const [session, setSession] = useState(getSession)
+  const [authChecked, setAuthChecked] = useState(false)
   const [items, setItems] = useState<ScheduleItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [dialog, setDialog] = useState<Dialog | null>(null)
   const [settings, setSettings] = useGridSettings()
   const [scheduleTitle, renameSchedule] = useScheduleTitle()
-  const { toggleTheme } = useTheme()
+  const { theme, setTheme, toggleTheme } = useTheme()
+  const [loggingOut, setLoggingOut] = useState(false)
+  const navigate = useNavigate()
+
+  // Save the dashboard's state on the server and restore it, so it follows the user to other devices.
+  const { saveNow } = useSyncedState({ gridSettings: settings, scheduleTitle, theme }, (saved: AppState) => {
+    if (saved.gridSettings) setSettings(parseGridSettings(saved.gridSettings))
+    if (typeof saved.scheduleTitle === 'string') renameSchedule(saved.scheduleTitle)
+    if (saved.theme === 'light' || saved.theme === 'dark') setTheme(saved.theme)
+  })
 
   useEffect(() => {
     listItems()
@@ -55,23 +67,41 @@ function DashboardPage() {
       .then((response) => response.json())
       .then((status: { authenticated: boolean; name?: string; email?: string }) => {
         if (status.authenticated && status.name) {
-          const googleSession = startGoogleSession(status.name, status.email)
-          setSession(googleSession)
+          setSession(startGoogleSession(status.name, status.email))
+        } else if (getSession()?.guest === false) {
+          // The Google session ended on the server; sign in again rather than show someone else's view.
+          clearSession()
+          setSession(null)
         }
       })
       .catch(() => undefined)
+      .finally(() => setAuthChecked(true))
   }, [])
 
-  // Grow the visible hours whenever an item falls outside them.
+  // Grow the visible hours whenever an item falls outside them (including after settings are restored).
   useEffect(() => {
     setSettings((prev) => fitToItems(prev, items))
-  }, [items, setSettings])
+  }, [items, settings, setSettings])
 
-  if (!session) return <Navigate to="/" replace />
+  // On a new device there is no local session yet, so wait for the server before deciding.
+  if (!session) return authChecked ? <Navigate to="/" replace /> : null
 
   const conflicts = findConflicts(items)
 
   const close = () => setDialog(null)
+
+  async function handleLogout() {
+    setLoggingOut(true)
+    // Save first: once signed out, the server would store these changes for a guest instead of this account.
+    await saveNow()
+    try {
+      await fetch('/api/auth/google/logout', { method: 'POST' })
+    } catch {
+      // Still clear the local session; the server session expires on its own.
+    }
+    clearSession()
+    navigate('/', { replace: true })
+  }
 
   async function run(action: () => Promise<void>) {
     setError(null)
@@ -137,9 +167,15 @@ function DashboardPage() {
           <button type="button" className="icon-button" aria-label="Toggle dark mode" onClick={toggleTheme}>
             <img className="invert-dark" src={moonIcon} alt="" width={20} height={20} />
           </button>
-          <button type="button" className="btn btn-primary dashboard-account" onClick={() => setDialog({ kind: 'account' })}>
-            Account
-          </button>
+          {session.guest ? (
+            <button type="button" className="btn btn-primary dashboard-account" onClick={() => setDialog({ kind: 'account' })}>
+              Account
+            </button>
+          ) : (
+            <button type="button" className="btn btn-primary dashboard-account" onClick={handleLogout} disabled={loggingOut}>
+              {loggingOut ? 'Logging out…' : 'Logout'}
+            </button>
+          )}
         </div>
       </header>
 
@@ -281,6 +317,7 @@ function DashboardPage() {
       )}
       {dialog?.kind === 'gcal' && (
         <GoogleCalendarModal
+          signedIn={!session.guest}
           items={items}
           onClose={close}
           onConfirm={async (entries) => {

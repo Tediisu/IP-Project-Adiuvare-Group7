@@ -5,11 +5,13 @@ import time
 import urllib.parse
 import urllib.request
 import urllib.error
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Cookie, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
+
+from app import auth
 
 
 router = APIRouter(tags=["google"])
@@ -22,8 +24,8 @@ GOOGLE_REDIRECT_URI = os.getenv(
 )
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
+# Short-lived OAuth state values; sessions themselves are stored in the database (app.auth).
 _states: dict[str, float] = {}
-_sessions: dict[str, dict] = {}
 
 
 class CalendarEntry(BaseModel):
@@ -61,16 +63,11 @@ def _configured() -> bool:
         )
 
 
-def _session_id(adiuvare_session: str | None) -> str | None:
-    return adiuvare_session if adiuvare_session in _sessions else None
+def _refresh_access_token(session: dict) -> str:
+    if session.get("access_token") and time.time() < session.get("expires_at", 0) - 30:
+        return session["access_token"]
 
-
-def _refresh_access_token(session_id: str, auth: dict) -> str:
-    expires_at = auth.get("expires_at", 0)
-    if auth.get("access_token") and time.time() < expires_at - 30:
-        return auth["access_token"]
-
-    refresh_token = auth.get("refresh_token")
+    refresh_token = session.get("refresh_token")
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Google authentication has expired. Sign in again.")
 
@@ -87,9 +84,7 @@ def _refresh_access_token(session_id: str, auth: dict) -> str:
     if not access_token:
         raise HTTPException(status_code=502, detail="Google could not refresh the session.")
 
-    auth["access_token"] = access_token
-    auth["expires_at"] = time.time() + int(result.get("expires_in", 3600))
-    _sessions[session_id]["auth"] = auth
+    auth.update_access_token(session, access_token, time.time() + int(result.get("expires_in", 3600)))
     return access_token
 
 
@@ -113,7 +108,7 @@ def google_login():
 
 
 @router.get("/auth/google/callback")
-def google_callback(code: str, state: str, response: Response):
+def google_callback(code: str, state: str, request: Request):
     _configured()
     expires_at = _states.pop(state, 0)
     if expires_at < time.time():
@@ -134,46 +129,42 @@ def google_callback(code: str, state: str, response: Response):
         raise HTTPException(status_code=502, detail="Google did not return an access token.")
 
     profile = _get_json("https://openidconnect.googleapis.com/v1/userinfo", access_token)
-    session_id = secrets.token_urlsafe(32)
-    _sessions[session_id] = {
-        "profile": {
-            "name": profile.get("name") or profile.get("email") or "Google User",
-            "email": profile.get("email"),
-        },
-        "auth": {
-            "access_token": access_token,
-            "refresh_token": token_data.get("refresh_token"),
-            "expires_at": time.time() + int(token_data.get("expires_in", 3600)),
-        },
-    }
+    # Google's stable account id; the same on every device, so saved data follows the user.
+    user_id = profile.get("sub") or profile.get("email")
+    if not user_id:
+        raise HTTPException(status_code=502, detail="Google did not return an account id.")
+
+    auth.upsert_user(
+        user_id,
+        name=profile.get("name") or profile.get("email") or "Google User",
+        email=profile.get("email"),
+    )
+    # A guest who signs in (e.g. from "Sync GCal") keeps the schedule they built.
+    auth.adopt_guest_data(request.cookies.get(auth.GUEST_COOKIE), user_id)
+    session_token = auth.create_session(
+        user_id,
+        access_token=access_token,
+        refresh_token=token_data.get("refresh_token"),
+        expires_at=time.time() + int(token_data.get("expires_in", 3600)),
+    )
 
     redirect = RedirectResponse(f"{FRONTEND_URL}/dashboard?google=connected", status_code=302)
-    redirect.set_cookie(
-        key="adiuvare_session",
-        value=session_id,
-        httponly=True,
-        samesite="lax",
-        max_age=60 * 60 * 24 * 30,
-        secure=FRONTEND_URL.startswith("https://"),
-    )
+    auth.set_session_cookie(redirect, session_token)
     return redirect
 
 
 @router.get("/auth/google/status")
 def google_status(adiuvare_session: str | None = Cookie(default=None)):
-    session_id = _session_id(adiuvare_session)
-    if not session_id:
+    session = auth.get_session(adiuvare_session)
+    if not session:
         return {"authenticated": False}
-    profile = _sessions[session_id]["profile"]
-    return {"authenticated": True, **profile}
+    return {"authenticated": True, "name": session["name"], "email": session["email"]}
 
 
 @router.post("/auth/google/logout")
 def google_logout(response: Response, adiuvare_session: str | None = Cookie(default=None)):
-    session_id = _session_id(adiuvare_session)
-    if session_id:
-        _sessions.pop(session_id, None)
-    response.delete_cookie("adiuvare_session")
+    auth.delete_session(adiuvare_session)
+    response.delete_cookie(auth.SESSION_COOKIE)
     return {"authenticated": False}
 
 
@@ -182,12 +173,11 @@ def import_google_calendar(
     payload: CalendarImport,
     adiuvare_session: str | None = Cookie(default=None),
 ):
-    session_id = _session_id(adiuvare_session)
-    if not session_id:
+    session = auth.get_session(adiuvare_session)
+    if not session:
         raise HTTPException(status_code=401, detail="Sign in with Google before importing.")
 
-    auth = _sessions[session_id]["auth"]
-    access_token = _refresh_access_token(session_id, auth)
+    access_token = _refresh_access_token(session)
     created: list[dict] = []
 
     for entry in payload.entries:

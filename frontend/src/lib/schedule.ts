@@ -14,10 +14,28 @@ export const COLOR_TAGS = [
   '#e67e22',
 ] as const
 
+export const DAY_NAMES: Record<Day, string> = {
+  Mon: 'Monday',
+  Tue: 'Tuesday',
+  Wed: 'Wednesday',
+  Thu: 'Thursday',
+  Fri: 'Friday',
+  Sat: 'Saturday',
+  Sun: 'Sunday',
+}
+
+const WEEKEND: readonly Day[] = ['Sat', 'Sun']
+
 /** Days in display order for the chosen first day of the week. */
 export function orderedDays(weekStart: WeekStart): Day[] {
   const start = DAYS.indexOf(weekStart)
   return [...DAYS.slice(start), ...DAYS.slice(0, start)]
+}
+
+/** Grid columns: Monday–Friday, plus Saturday or Sunday only when an item meets on that day. */
+export function visibleDays(weekStart: WeekStart, items: { days: readonly Day[] }[]): Day[] {
+  const used = new Set(items.flatMap((item) => item.days))
+  return orderedDays(weekStart).filter((day) => !WEEKEND.includes(day) || used.has(day))
 }
 
 /** "HH:MM" or "HH:MM:SS" → minutes since midnight. */

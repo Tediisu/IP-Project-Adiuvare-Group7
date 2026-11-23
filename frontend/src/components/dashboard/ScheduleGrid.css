@@ -96,7 +96,7 @@
 
 .schedule-row {
   display: grid;
-  grid-template-columns: 72px repeat(7, minmax(0, 1fr));
+  grid-template-columns: 72px repeat(var(--day-count, 5), minmax(0, 1fr));
   height: var(--row-height);
   border-bottom: 1.111px solid var(--grid-line-soft);
 }
@@ -167,7 +167,7 @@
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: 72px repeat(7, minmax(0, 1fr));
+  grid-template-columns: 72px repeat(var(--day-count, 5), minmax(0, 1fr));
   pointer-events: none;
 }
 
@@ -206,6 +206,28 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Short classes (under ~30 min): title and time share one line so neither gets cut off. */
+.schedule-block.compact {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  padding-block: 2px;
+}
+
+.schedule-block.compact strong {
+  flex-shrink: 0;
+  max-width: 60%;
+}
+
+.schedule-block.compact span {
+  min-width: 0;
+}
+
+/* No room for a third line. */
+.schedule-block.compact span + span {
+  display: none;
 }
 
 /* Overlapping classes: amber ring so they stand out even side by side. */

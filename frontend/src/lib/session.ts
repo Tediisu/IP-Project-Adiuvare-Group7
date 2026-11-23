@@ -36,6 +36,14 @@ export function startGoogleSession(name: string, email?: string): Session {
   return session
 }
 
+export function clearSession() {
+  try {
+    localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // storage unavailable
+  }
+}
+
 export function initials(name: string): string {
   return name
     .split(/\s+/)
